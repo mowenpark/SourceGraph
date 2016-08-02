@@ -1,64 +1,68 @@
 // set up SVG for D3
-var width  = 960,
-    height = 500,
-    colors = d3.scale.category10();
+var width  = 1500,
+    height = 1000,
+    colors = d3.scale.category20c();
 
-var svg = d3.select('body')
+var svg = d3.select('.directed-graph')
   .append('svg')
   .attr('oncontextmenu', 'return false;')
   .attr('width', width)
   .attr('height', height);
 
-// set up initial nodes and links
+// var drag = d3.behavior.drag()
+//     .on("dragstart", dragstarted)
+//     .on("drag", dragged)
+//     .on("dragend", dragended);
 
-var nodes = [
-    {id: 0, reflexive: false},
-    {id: 1, reflexive: true },
-    {id: 2, reflexive: false}
-  ],
-  lastNodeId = 2,
-  links = [
-    {source: nodes[0], target: nodes[1], left: false, right: true },
-    {source: nodes[1], target: nodes[2], left: false, right: true }
-  ];
+var tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
 
+// set up initial nodes and links using Depth First Search
+var nodes = [],
+    links = [];
 
-// var nodes = [],
-//     links = [];
-//
-// function depthFirstSearch(root, count=0) {
-//
-//     if (node === null || count == nth) {
-//       return;
-//     } else {
-//       nodes <<
-//     }
-//
-//     if (!node.visited) {
-//       node.visited = true;
-//       nodeStack.push(node);
-//     }
-//
-//     return matches(node.data);
-//   }
-//
-//   if (found(root)) {
-//     return true;
-//   }
-//
-//   while (!nodeStack.isEmpty()) {
-//     const node = nodeStack.pop();
-//
-//     if (found(node.left)) {
-//       return true;
-//     }
-//     if (found(node.right)) {
-//       return true;
-//     }
-//   }
-//
-//   return false;
-// }
+function getNodes(root, count, depth, parent = null) {
+
+  var xmlhttp = new XMLHttpRequest();
+  var url = "https://api.github.com/users/" + root + "?access_token=10d740573f1b0205b8bb3ce98e33256387e61304";
+  xmlhttp.onreadystatechange = function() {
+    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+      var node = JSON.parse(xmlhttp.responseText);
+      nodes.push(node);
+      if (parent != null) {
+        links.push({ source: parent, target: node, left: false, right: true });
+      }
+      getFollowers(node.login, count + 1, depth, node);
+    }
+  };
+
+  xmlhttp.open("GET", url, true);
+  xmlhttp.send();
+}
+
+function getFollowers(root, count, depth, parent) {
+  if (count == depth) {
+    restart();
+    return;
+  }
+  var xmlhttp = new XMLHttpRequest();
+  var url = "https://api.github.com/users/" + root + "/followers" + "?access_token=10d740573f1b0205b8bb3ce98e33256387e61304";
+  xmlhttp.count = count;
+  xmlhttp.depth = depth;
+  xmlhttp.parent = parent;
+  xmlhttp.onreadystatechange = function() {
+    if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+      var followers = JSON.parse(xmlhttp.responseText);
+      followers.forEach(function (follower) {
+        getNodes(follower.login, xmlhttp.count, xmlhttp.depth, xmlhttp.parent)
+      });
+    }
+  };
+
+  xmlhttp.open("GET", url, true);
+  xmlhttp.send();
+}
 
 // init D3 force layout
 var force = d3.layout.force()
@@ -66,7 +70,7 @@ var force = d3.layout.force()
     .links(links)
     .size([width, height])
     .linkDistance(150)
-    .charge(-500)
+    .charge(-200)
     .on('tick', tick)
 
 // define arrow markers for graph links
@@ -91,11 +95,6 @@ svg.append('svg:defs').append('svg:marker')
   .append('svg:path')
     .attr('d', 'M10,-5L0,0L10,5')
     .attr('fill', '#000');
-
-// line displayed when dragging new nodes
-var drag_line = svg.append('svg:path')
-  .attr('class', 'link dragline hidden')
-  .attr('d', 'M0,0L0,0');
 
 // handles to link and node element groups
 var path = svg.append('svg:g').selectAll('path'),
@@ -155,14 +154,11 @@ function restart() {
     .style('marker-start', function(d) { return d.left ? 'url(#start-arrow)' : ''; })
     .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; })
     .on('mousedown', function(d) {
-      if(d3.event.ctrlKey) return;
-
       // select link
       mousedown_link = d;
       if(mousedown_link === selected_link) selected_link = null;
       else selected_link = mousedown_link;
       selected_node = null;
-      restart();
     });
 
   // remove old links
@@ -175,38 +171,51 @@ function restart() {
 
   // update existing nodes (reflexive & selected visual states)
   circle.selectAll('circle')
-    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.id)).brighter().toString() : colors(d.id); })
-    .classed('reflexive', function(d) { return d.reflexive; });
+    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.company)).brighter().toString() : colors(d.company); });
 
   // add new nodes
   var g = circle.enter().append('svg:g');
-
   g.append('svg:circle')
     .attr('class', 'node')
-    .attr('r', 12)
-    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.id)).brighter().toString() : colors(d.id); })
-    .style('stroke', function(d) { return d3.rgb(colors(d.id)).darker().toString(); })
-    .classed('reflexive', function(d) { return d.reflexive; })
+    .attr('r', function (d) {
+      return (d.login == "mowenpark") ? 40 : 12;
+    })
+    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.company)).brighter().toString() : colors(d.company); })
+    .style('stroke', function(d) { return d3.rgb(colors(d.company)).darker().toString(); })
+    // .call(drag)
     .on('mouseover', function(d) {
-      // if(!mousedown_node || d === mousedown_node) return;
       // enlarge target node
-      d3.select(this).attr('transform', 'scale(1.1)');
+      tooltip.transition()
+        .duration(500)
+        .style("opacity", .9);
+      tooltip.html("login: " + d.login + "<br/>" + "followers: " + d.followers + "<br/>" + "company: " + d.company)
+        .style("left", (d3.event.pageX) + "px")
+        .style("top", (d3.event.pageY - 28) + "px")
+      d3.select(this)
+        .transition()
+        .duration(500)
+        .attr('transform', 'scale(2.25)')
+        .transition()
+        .ease('elastic')
+        .attr('transform', 'scale(2)');
     })
     .on('mouseout', function(d) {
-      // if(!mousedown_node || d === mousedown_node) return;
       // unenlarge target node
-      d3.select(this).attr('transform', '');
+      d3.select(this)
+        .transition()
+        .duration(500)
+        .attr('transform', '');
+
+      tooltip.transition()
+        .duration(500)
+        .style("opacity", 0);
     })
     .on('mousedown', function(d) {
-      if(d3.event.ctrlKey) return;
-
       // select node
       mousedown_node = d;
       if(mousedown_node === selected_node) selected_node = null;
       else selected_node = mousedown_node;
       selected_link = null;
-
-      restart();
     });
 
   // show node IDs
@@ -214,7 +223,7 @@ function restart() {
       .attr('x', 0)
       .attr('y', 4)
       .attr('class', 'id')
-      .text(function(d) { return d.id; });
+      .text(function(d) { return d.login; });
 
   // remove old nodes
   circle.exit().remove();
@@ -223,4 +232,22 @@ function restart() {
   force.start();
 }
 
-restart();
+// function dragstarted(d) {
+//   d3.event.sourceEvent.stopPropagation();
+//   d3.select(this).classed("dragging", true);
+// }
+//
+// function dragged(d) {
+//   d.x = d3.event.x;
+//   d.y = d3.event.y;
+// }
+//
+// function dragended(d) {
+//   d3.select(this).classed("dragging", false);
+// }
+
+function searchFollowers(login, key) {
+  // getNodes("mowenpark", 0, 3, null);
+}
+
+getNodes("mowenpark", 0, 4);

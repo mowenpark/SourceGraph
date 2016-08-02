@@ -8,6 +8,12 @@
   </head>
 
   <body>
+    <div class="directed-graph"></div>
+    <form>
+      <input type="text" name="loginName" placeholder="login name"/>
+      <input type="text" name="authKey" placeholder="auth key"/>
+      <button type="button" onclick="searchFollowers(this.form.loginName.value, this.form.authKey.value)">Search</button>
+    </form>
   </body>
 
     <script src="http://d3js.org/d3.v3.min.js"></script>

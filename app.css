@@ -8,10 +8,6 @@ svg {
   user-select: none;
 }
 
-svg:not(.active):not(.ctrl) {
-  cursor: crosshair;
-}
-
 path.link {
   fill: none;
   stroke: #000;
@@ -53,4 +49,15 @@ text {
 text.id {
   text-anchor: middle;
   font-weight: bold;
+}
+
+div.tooltip {
+    position: absolute;
+    text-align: center;
+    padding: 2px;
+    font: 12px sans-serif;
+    background: lightgrey;
+    border: 0px;
+    border-radius: 2px;
+    pointer-events: none;
 }
