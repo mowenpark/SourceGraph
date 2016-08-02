@@ -9,11 +9,13 @@
 
   <body>
     <div class="directed-graph"></div>
-    <form>
-      <input type="text" name="loginName" placeholder="login name"/>
-      <input type="text" name="authKey" placeholder="auth key"/>
-      <button type="button" onclick="searchFollowers(this.form.loginName.value, this.form.authKey.value)">Search</button>
-    </form>
+    <!-- <form>
+      GitHub username:
+      <input type="text" name="loginName" placeholder="e.g. mowenpark"/>
+      and nth degree GitHub followers:
+      <input type="number" name="nth" min="1" max="4" placeholder="4">
+      <button type="button" onclick="searchFollowers(this.form.loginName.value, this.form.nth.value)">Search</button>
+    </form> -->
   </body>
 
     <script src="http://d3js.org/d3.v3.min.js"></script>

@@ -22,7 +22,8 @@ var tooltip = d3.select("body").append("div")
 var nodes = [],
     links = [];
 
-function getNodes(root, count, depth, parent = null) {
+// initial api call to get root
+function getNodes(root, count, depth, parent) {
 
   var xmlhttp = new XMLHttpRequest();
   var url = "https://api.github.com/users/" + root + "?access_token=10d740573f1b0205b8bb3ce98e33256387e61304";
@@ -30,8 +31,8 @@ function getNodes(root, count, depth, parent = null) {
     if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
       var node = JSON.parse(xmlhttp.responseText);
       nodes.push(node);
-      if (parent != null) {
-        links.push({ source: parent, target: node, left: false, right: true });
+      if (parent != null && node != null) {
+        links.push({ source: parent, target: node, left: true, right: false });
       }
       getFollowers(node.login, count + 1, depth, node);
     }
@@ -41,8 +42,9 @@ function getNodes(root, count, depth, parent = null) {
   xmlhttp.send();
 }
 
+// api call to get followers
 function getFollowers(root, count, depth, parent) {
-  if (count == depth) {
+  if (count == depth + 1 || root == null) {
     restart();
     return;
   }
@@ -69,7 +71,7 @@ var force = d3.layout.force()
     .nodes(nodes)
     .links(links)
     .size([width, height])
-    .linkDistance(150)
+    .linkDistance(130)
     .charge(-200)
     .on('tick', tick)
 
@@ -103,15 +105,7 @@ var path = svg.append('svg:g').selectAll('path'),
 // mouse event vars
 var selected_node = null,
     selected_link = null,
-    mousedown_link = null,
-    mousedown_node = null,
-    mouseup_node = null;
-
-function resetMouseVars() {
-  mousedown_node = null;
-  mouseup_node = null;
-  mousedown_link = null;
-}
+    mousedown_link = null;
 
 // update force layout (called automatically each iteration)
 function tick() {
@@ -150,45 +144,37 @@ function restart() {
   // add new links
   path.enter().append('svg:path')
     .attr('class', 'link')
-    .classed('selected', function(d) { return d === selected_link; })
     .style('marker-start', function(d) { return d.left ? 'url(#start-arrow)' : ''; })
-    .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; })
-    .on('mousedown', function(d) {
-      // select link
-      mousedown_link = d;
-      if(mousedown_link === selected_link) selected_link = null;
-      else selected_link = mousedown_link;
-      selected_node = null;
-    });
+    .style('marker-end', function(d) { return d.right ? 'url(#end-arrow)' : ''; });
 
   // remove old links
   path.exit().remove();
 
 
   // circle (node) group
-  // NB: the function arg is crucial here! nodes are known by id, not by index!
-  circle = circle.data(nodes, function(d) { return d.id; });
+  circle = circle.data(nodes);
 
   // update existing nodes (reflexive & selected visual states)
   circle.selectAll('circle')
-    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.company)).brighter().toString() : colors(d.company); });
+    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.location)).brighter().toString() : colors(d.location); });
 
   // add new nodes
   var g = circle.enter().append('svg:g');
   g.append('svg:circle')
     .attr('class', 'node')
     .attr('r', function (d) {
-      return (d.login == "mowenpark") ? 40 : 12;
+      return (d.login == "mowenpark") ? 12 : 12;
     })
-    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.company)).brighter().toString() : colors(d.company); })
-    .style('stroke', function(d) { return d3.rgb(colors(d.company)).darker().toString(); })
+    .style('fill', function(d) { return (d === selected_node) ? d3.rgb(colors(d.location)).brighter().toString() : colors(d.location); })
+    .style('stroke', function(d) { return d3.rgb(colors(d.location)).darker().toString(); })
     // .call(drag)
+    .attr("xlink:href", function (d) { return d.html_url })
     .on('mouseover', function(d) {
       // enlarge target node
       tooltip.transition()
         .duration(500)
         .style("opacity", .9);
-      tooltip.html("login: " + d.login + "<br/>" + "followers: " + d.followers + "<br/>" + "company: " + d.company)
+      tooltip.html("login: " + d.login + "<br/>" + "followers: " + d.followers + "<br/>" + "location: " + d.location)
         .style("left", (d3.event.pageX) + "px")
         .style("top", (d3.event.pageY - 28) + "px")
       d3.select(this)
@@ -209,13 +195,6 @@ function restart() {
       tooltip.transition()
         .duration(500)
         .style("opacity", 0);
-    })
-    .on('mousedown', function(d) {
-      // select node
-      mousedown_node = d;
-      if(mousedown_node === selected_node) selected_node = null;
-      else selected_node = mousedown_node;
-      selected_link = null;
     });
 
   // show node IDs
@@ -246,8 +225,4 @@ function restart() {
 //   d3.select(this).classed("dragging", false);
 // }
 
-function searchFollowers(login, key) {
-  // getNodes("mowenpark", 0, 3, null);
-}
-
-getNodes("mowenpark", 0, 4);
+getNodes("mowenpark", 0, 3);
